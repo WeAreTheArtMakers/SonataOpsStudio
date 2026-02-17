@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: sonata
       POSTGRES_PASSWORD: sonata
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,9 +19,13 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     container_name: sonataops-clickhouse
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-default}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-sonata}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-sonata}
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     healthcheck:
@@ -38,8 +42,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
 
@@ -63,7 +67,7 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "16686:16686"
+      - "${JAEGER_UI_PORT:-16686}:16686"
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.102.1
@@ -72,9 +76,9 @@ services:
     volumes:
       - ./infra/otel/otel-collector.yml:/etc/otelcol/config.yaml:ro
     ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "8889:8889"
+      - "${OTEL_GRPC_PORT:-4317}:4317"
+      - "${OTEL_HTTP_PORT:-4318}:4318"
+      - "${OTEL_METRICS_PORT:-8889}:8889"
     depends_on:
       - jaeger
 
@@ -89,8 +93,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://sonata:sonata@postgres:5432/sonataops}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-sonata}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-sonata}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -121,7 +125,7 @@ services:
       otel-collector:
         condition: service_started
     ports:
-      - "8000:8000"
+      - "${BACKEND_API_PORT:-8000}:8000"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   backend-worker:
@@ -135,8 +139,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       POSTGRES_URL: ${POSTGRES_URL:-postgresql://sonata:sonata@postgres:5432/sonataops}
       CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-sonata}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-sonata}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -182,7 +186,7 @@ services:
     depends_on:
       - backend-api
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
 
   n8n:
     image: n8nio/n8n:1.88.0
@@ -195,7 +199,7 @@ services:
       WEBHOOK_URL: http://localhost:5678/
       N8N_DIAGNOSTICS_ENABLED: "false"
     ports:
-      - "5678:5678"
+      - "${N8N_PORT:-5678}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/flows:/data/flows
@@ -207,7 +211,7 @@ services:
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     depends_on:
       - backend-api
 
@@ -219,7 +223,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
-      - "3001:3000"
+      - "${GRAFANA_PORT:-3001}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro

@@ -30,7 +30,13 @@ async def init_postgres() -> None:
     schema_path = Path(__file__).with_name("schema.sql")
     schema_sql = schema_path.read_text(encoding="utf-8")
     async with _pool.acquire() as conn:
-        await conn.execute(schema_sql)
+        # Serialize schema initialization across API and worker processes.
+        lock_id = 842180019947
+        await conn.execute("SELECT pg_advisory_lock($1)", lock_id)
+        try:
+            await conn.execute(schema_sql)
+        finally:
+            await conn.execute("SELECT pg_advisory_unlock($1)", lock_id)
 
     logger.info("postgres initialized")
 

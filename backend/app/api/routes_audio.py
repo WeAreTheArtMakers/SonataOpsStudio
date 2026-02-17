@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from urllib.parse import urlparse, urlunparse
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -30,22 +29,6 @@ class AudioUrlResponse(BaseModel):
     format: str
     url: str
     expires_seconds: int
-
-
-def _rewrite_public(url: str) -> str:
-    settings = get_settings()
-    internal = urlparse(url)
-    public = urlparse(settings.public_minio_url)
-    return urlunparse(
-        (
-            public.scheme or internal.scheme,
-            public.netloc or internal.netloc,
-            internal.path,
-            internal.params,
-            internal.query,
-            internal.fragment,
-        )
-    )
 
 
 @router.post("/audio/render")
@@ -148,6 +131,6 @@ async def get_audio_url(
     return AudioUrlResponse(
         artifact_id=artifact_id,
         format=fmt,
-        url=_rewrite_public(signed),
+        url=signed,
         expires_seconds=expires_seconds,
     )

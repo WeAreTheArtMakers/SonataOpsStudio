@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import random
 from datetime import timedelta
@@ -63,7 +64,7 @@ async def seed_demo(workspace_id: str) -> dict[str, Any]:
             point["metric_name"],
             point["timestamp"],
             point["value"],
-            point["tags"],
+            json.dumps(point["tags"]),
         )
 
     docs = [

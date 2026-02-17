@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     postgres_url: str = "postgresql://sonata:sonata@postgres:5432/sonataops"
 
     clickhouse_url: str = "http://clickhouse:8123"
-    clickhouse_user: str = "default"
-    clickhouse_password: str = ""
+    clickhouse_user: str = "sonata"
+    clickhouse_password: str = "sonata"
 
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = "minioadmin"

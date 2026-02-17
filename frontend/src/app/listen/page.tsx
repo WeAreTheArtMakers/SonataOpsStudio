@@ -1,12 +1,20 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import AudioPlayer from '@/components/AudioPlayer';
 import SonificationControls from '@/components/SonificationControls';
 
 export default function ListenPage() {
+  return (
+    <Suspense fallback={<div className="panel p-4 text-sm text-sand/80">Loading Listen...</div>}>
+      <ListenContent />
+    </Suspense>
+  );
+}
+
+function ListenContent() {
   const params = useSearchParams();
   const initialMetric = useMemo(() => params.get('metric') || 'RiskScore', [params]);
 
