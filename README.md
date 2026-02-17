@@ -47,16 +47,16 @@ Or start conflict-safe demo mode (auto-selects free host ports):
 make listen-demo
 ```
 3. Open apps:
-- Frontend: [http://localhost:3000](http://localhost:3000)
-- Backend API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-- n8n: [http://localhost:5678](http://localhost:5678)
-- MinIO Console: [http://localhost:9001](http://localhost:9001)
-- Grafana: [http://localhost:3001](http://localhost:3001)
-- Jaeger: [http://localhost:16686](http://localhost:16686)
+- Frontend: [http://localhost:3002](http://localhost:3002)
+- Backend API docs: [http://localhost:8001/docs](http://localhost:8001/docs)
+- n8n: [http://localhost:5679](http://localhost:5679)
+- MinIO Console: [http://localhost:9002](http://localhost:9002)
+- Grafana: [http://localhost:3003](http://localhost:3003)
+- Jaeger: [http://localhost:16688](http://localhost:16688)
 
 4. Seed demo data:
 ```bash
-curl -X POST http://localhost:8000/admin/seed-demo
+curl -X POST http://localhost:8001/admin/seed-demo
 ```
 
 ## Demo Script

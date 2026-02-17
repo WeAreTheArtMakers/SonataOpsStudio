@@ -84,13 +84,21 @@ def _nearest_grid(value: float, grid: tuple[float, ...]) -> float:
 
 def _strategy_for_controls(controls: dict[str, Any]) -> str:
     preset_name = str(controls.get("preset_name", "")).lower()
+    anomaly_mode = str(controls.get("anomaly_mode", "watch")).lower()
     glitch = float(controls.get("glitch_density", 0.0))
     ambient = float(controls.get("ambient_mix", 0.0))
     harmonizer = float(controls.get("harmonizer_mix", 0.0))
     intensity = float(controls.get("intensity", 0.0))
+    rhythm = float(controls.get("rhythm_density", 1.0))
 
-    if "state azure" in preset_name or ("azure" in preset_name and ambient >= 0.6):
-        return "azure_drift"
+    if "modart" in preset_name:
+        return "modart_drift"
+    if "incident" in preset_name:
+        return "feedback_mesh"
+    if "clean harmonics" in preset_name:
+        return "clean_harmonics"
+    if "pulse relay" in preset_name:
+        return "gated_drive"
     if "glitch" in preset_name or glitch >= 0.82:
         return "feedback_mesh"
     if "ambient" in preset_name:
@@ -101,8 +109,16 @@ def _strategy_for_controls(controls: dict[str, Any]) -> str:
         return "fm_fold"
     if "executive" in preset_name:
         return "pulse_lattice"
+    if anomaly_mode == "incident":
+        if glitch >= 0.75 or rhythm >= 1.45:
+            return "feedback_mesh"
+        return "resonant_clicks"
+    if anomaly_mode == "stable":
+        if harmonizer >= 0.72:
+            return "clean_harmonics"
+        return "modart_drift"
     if harmonizer >= 0.72 and ambient >= 0.58:
-        return "azure_drift"
+        return "modart_drift"
     if glitch >= 0.58:
         return "gated_drive"
     if intensity >= 0.74:
@@ -160,12 +176,20 @@ LocalOut.ar(LPF.ar(AllpassC.ar(del, 0.12, dt, 0.55), 7500));
 sig = (base + (del * 0.45)).tanh;
 sig = Splay.ar(sig, spread: width, level: 0.84);
 """,
-        "azure_drift": """
+        "modart_drift": """
 var cloud = SinOsc.ar(subHz * [1, 1.5, 2.01], [0, 0.4, 1.2], [0.7, 0.2, 0.12]).sum;
 var micro = Decay2.ar(Impulse.ar(tempoHz * (3 + (glitch * 4))), 0.001, 0.022) * BPF.ar(WhiteNoise.ar(0.5), subHz * (14 + (bright * 12)), 0.08);
 sig = ((sub * 1.3) + (cloud * (0.36 + (harmMix * 0.35))) + (click * 0.32) + (micro * 0.45)).tanh;
 sig = AllpassC.ar(sig, 0.1, dt.round([2e-3, 4e-3, 8e-3, 1.6e-2]), 1.0) + DelayC.ar(sig, 0.1, dt * 0.75, 0.22);
 sig = Splay.ar([sig, LPF.ar(sig, 5000 + (bright * 4000))], spread: width, level: 0.82);
+""",
+        "clean_harmonics": """
+var shimmer = SinOsc.ar(subHz * [2.0, 3.01], [0.2, 1.4], [0.12, 0.08]).sum;
+var rich = SinOsc.ar(subHz * [1.0, 1.25, 1.5], [0, 0.8, 1.2], [0.65, 0.22, 0.18]).sum;
+var micro = Decay2.ar(Impulse.ar(tempoHz * (2.4 + (glitch * 2.2))), 0.001, 0.012) * HPF.ar(PinkNoise.ar(0.25), 3800);
+sig = ((sub * 1.2) + (rich * (0.4 + harmMix * 0.34)) + (shimmer * 0.3) + (micro * 0.24)).tanh;
+sig = AllpassC.ar(sig, 0.06, dt.round([2e-3, 4e-3, 8e-3]), 0.72) + DelayC.ar(sig, 0.06, dt * 0.5, 0.18);
+sig = Pan2.ar(sig, SinOsc.kr(0.03 + (amb * 0.02)) * width);
 """,
     }
     return variants.get(strategy, variants["pulse_lattice"])
@@ -183,6 +207,7 @@ def _supercollider_script(out_wav: Path, duration: int, seed: int, controls: dic
     harmonizer_mix = _clamp(float(controls.get("harmonizer_mix", 0.5)), 0.0, 1.0)
     pad_depth = _clamp(float(controls.get("pad_depth", 0.6)), 0.1, 1.0)
     ambient_mix = _clamp(float(controls.get("ambient_mix", 0.4)), 0.0, 1.0)
+    rhythm_density = _clamp(float(controls.get("rhythm_density", 1.0)), 0.7, 2.2)
     transient_gain = _clamp(float(controls.get("transient_gain", 0.12)), 0.01, 0.5)
 
     strategy = _strategy_for_controls(controls)
@@ -194,14 +219,14 @@ def _supercollider_script(out_wav: Path, duration: int, seed: int, controls: dic
 var outPath = "{out_path}";
 var dur = {float(duration):.3f};
 var seed = {int(seed)};
-var def = SynthDef(\\sonata_render, {{ |out=0, subHz={sub_hz:.4f}, tempo={tempo:.4f}, bright={brightness:.4f}, width={stereo_width:.4f}, glitch={glitch_density:.4f}, drive={drive:.4f}, harmMix={harmonizer_mix:.4f}, intensity={intensity:.4f}, pad={pad_depth:.4f}, amb={ambient_mix:.4f}, seed={int(seed)}|
+var def = SynthDef(\\sonata_render, {{ |out=0, subHz={sub_hz:.4f}, tempo={tempo:.4f}, bright={brightness:.4f}, width={stereo_width:.4f}, glitch={glitch_density:.4f}, drive={drive:.4f}, harmMix={harmonizer_mix:.4f}, intensity={intensity:.4f}, pad={pad_depth:.4f}, amb={ambient_mix:.4f}, rhythm={rhythm_density:.4f}, seed={int(seed)}|
     var sig;
     var tempoHz = tempo / 60;
-    var tFast = Impulse.ar(tempoHz * (4 + (glitch * 6)));
-    var tSlow = Impulse.ar(tempoHz * (2 + intensity));
+    var tFast = Impulse.ar(tempoHz * rhythm * (3.8 + (glitch * 6.5)));
+    var tSlow = Impulse.ar(tempoHz * rhythm * (1.6 + intensity));
     var sawTrig = Trig.ar(Saw.ar(subHz * (0.5 + (intensity * 0.3))), 0.0015);
-    var clickTrig = tFast + Dust.ar(3 + (glitch * 26)) + sawTrig;
-    var dt = TExpRand.ar(2e-4, 0.08, Impulse.ar(8 + (glitch * 24))).round([2e-3, 4e-3, 8e-3, 1.6e-2]);
+    var clickTrig = tFast + Dust.ar((3 + (glitch * 26)) * rhythm) + sawTrig;
+    var dt = TExpRand.ar(2e-4, 0.08, Impulse.ar((8 + (glitch * 24)) * rhythm)).round([2e-3, 4e-3, 8e-3, 1.6e-2]);
     var drift = SinOsc.kr(0.015 + (pad * 0.025)).range(0.985, 1.015);
     var sub = SinOsc.ar((subHz * drift) + SinOsc.kr(0.07, 0, subHz * 0.02), 0, 0.92);
     var bassSaw = Saw.ar(subHz * [1, 1.003, 0.5], 0.22).sum;
@@ -245,6 +270,7 @@ def _python_fallback_wav(out_wav: Path, duration: int, controls: dict[str, Any],
     harmonizer = _clamp(float(controls.get("harmonizer_mix", 0.5)), 0.0, 1.0)
     pad_depth = _clamp(float(controls.get("pad_depth", 0.6)), 0.1, 1.0)
     ambient = _clamp(float(controls.get("ambient_mix", 0.4)), 0.0, 1.0)
+    rhythm = _clamp(float(controls.get("rhythm_density", 1.0)), 0.7, 2.2)
 
     rng = random.Random(seed)
     dt_grid = (0.002, 0.004, 0.008, 0.016)
@@ -263,10 +289,10 @@ def _python_fallback_wav(out_wav: Path, duration: int, controls: dict[str, Any],
     grain_hold = 1
 
     tempo_hz = tempo / 60.0
-    click_interval = max(1, int(sample_rate / max(1.0, tempo_hz * (4.0 + (glitch * 6.0)))))
-    pulse_interval = max(1, int(sample_rate / max(1.0, tempo_hz * (2.0 + intensity))))
-    micro_interval = max(1, int(sample_rate / max(1.0, 8.0 + (glitch * 24.0))))
-    grain_interval = max(1, int(sample_rate / max(1.0, tempo_hz * (6.0 + (glitch * 10.0)))))
+    click_interval = max(1, int(sample_rate / max(1.0, tempo_hz * rhythm * (4.0 + (glitch * 6.0)))))
+    pulse_interval = max(1, int(sample_rate / max(1.0, tempo_hz * rhythm * (2.0 + intensity))))
+    micro_interval = max(1, int(sample_rate / max(1.0, (8.0 + (glitch * 24.0)) * rhythm)))
+    grain_interval = max(1, int(sample_rate / max(1.0, tempo_hz * rhythm * (6.0 + (glitch * 10.0)))))
 
     with wave.open(str(out_wav), "wb") as wf:
         wf.setnchannels(2)
@@ -323,7 +349,7 @@ def _python_fallback_wav(out_wav: Path, duration: int, controls: dict[str, Any],
             elif strategy == "feedback_mesh":
                 base = math.tanh((sub * 1.1) + (pulse * 0.45) + (click * 0.3) + ((fb_l + fb_r) * 0.24))
                 dry = base
-            elif strategy == "azure_drift":
+            elif strategy == "modart_drift":
                 cloud = (
                     math.sin(2.0 * math.pi * sub_hz * t) * 0.45
                     + math.sin(2.0 * math.pi * (sub_hz * 1.5) * t + 0.4) * 0.18
@@ -331,6 +357,18 @@ def _python_fallback_wav(out_wav: Path, duration: int, controls: dict[str, Any],
                 )
                 micro = math.sin(2.0 * math.pi * (sub_hz * (14.0 + (brightness * 12.0))) * t) * click_env * 0.3
                 dry = math.tanh((sub * 1.25) + (cloud * (0.36 + (harmonizer * 0.35))) + (click * 0.3) + micro)
+            elif strategy == "clean_harmonics":
+                shimmer = (
+                    math.sin(2.0 * math.pi * (sub_hz * 2.0) * t + 0.2) * 0.12
+                    + math.sin(2.0 * math.pi * (sub_hz * 3.01) * t + 1.4) * 0.08
+                )
+                rich = (
+                    math.sin(2.0 * math.pi * sub_hz * t) * 0.65
+                    + math.sin(2.0 * math.pi * (sub_hz * 1.25) * t + 0.8) * 0.22
+                    + math.sin(2.0 * math.pi * (sub_hz * 1.5) * t + 1.2) * 0.18
+                )
+                micro = click_env * (0.09 + glitch * 0.16) * rng.uniform(-1.0, 1.0)
+                dry = math.tanh((sub * 1.2) + (rich * (0.4 + harmonizer * 0.34)) + (shimmer * 0.3) + micro)
             else:
                 dry = math.tanh(sub + (bass_saw * 0.55) + pulse + (click * (0.42 + (glitch * 0.45))))
 
@@ -377,6 +415,8 @@ async def render_wav(
         span.set_attribute("audio.glitch_density", controls.get("glitch_density", 0.0))
         span.set_attribute("audio.harmonizer_mix", controls.get("harmonizer_mix", 0.0))
         span.set_attribute("audio.pad_depth", controls.get("pad_depth", 0.0))
+        span.set_attribute("audio.rhythm_density", controls.get("rhythm_density", 1.0))
+        span.set_attribute("audio.anomaly_mode", str(controls.get("anomaly_mode", "watch")))
         span.set_attribute("audio.strategy", strategy)
 
         try:

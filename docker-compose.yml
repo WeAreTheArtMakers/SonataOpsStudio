@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: sonata
       POSTGRES_PASSWORD: sonata
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +24,8 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-sonata}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-sonata}
     ports:
-      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-      - "${CLICKHOUSE_NATIVE_PORT:-9009}:9000"
+      - "${CLICKHOUSE_HTTP_PORT:-8125}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9010}:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     healthcheck:
@@ -42,8 +42,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${MINIO_PORT:-9001}:9000"
+      - "${MINIO_CONSOLE_PORT:-9002}:9001"
     volumes:
       - minio_data:/data
 
@@ -67,7 +67,7 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_UI_PORT:-16688}:16686"
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.102.1
@@ -76,8 +76,8 @@ services:
     volumes:
       - ./infra/otel/otel-collector.yml:/etc/otelcol/config.yaml:ro
     ports:
-      - "${OTEL_GRPC_PORT:-4317}:4317"
-      - "${OTEL_HTTP_PORT:-4318}:4318"
+      - "${OTEL_GRPC_PORT:-4319}:4317"
+      - "${OTEL_HTTP_PORT:-4320}:4318"
       - "${OTEL_METRICS_PORT:-8889}:8889"
     depends_on:
       - jaeger
@@ -100,8 +100,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-audio}
       MINIO_SECURE: ${MINIO_SECURE:-false}
-      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9000}
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9001}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8001}
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       ZAI_API_KEY: ${ZAI_API_KEY:-}
@@ -125,7 +125,7 @@ services:
       otel-collector:
         condition: service_started
     ports:
-      - "${BACKEND_API_PORT:-8000}:8000"
+      - "${BACKEND_API_PORT:-8001}:8000"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
   backend-worker:
@@ -146,8 +146,8 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-audio}
       MINIO_SECURE: ${MINIO_SECURE:-false}
-      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9000}
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9001}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8001}
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       ZAI_API_KEY: ${ZAI_API_KEY:-}
@@ -186,7 +186,7 @@ services:
     depends_on:
       - backend-api
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3002}:3000"
 
   n8n:
     image: n8nio/n8n:1.88.0
@@ -196,10 +196,10 @@ services:
       N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin}
       N8N_HOST: localhost
-      WEBHOOK_URL: http://localhost:5678/
+      WEBHOOK_URL: http://localhost:${N8N_PORT:-5679}/
       N8N_DIAGNOSTICS_ENABLED: "false"
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - "${N8N_PORT:-5679}:5678"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/flows:/data/flows
@@ -211,7 +211,7 @@ services:
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "${PROMETHEUS_PORT:-9091}:9090"
     depends_on:
       - backend-api
 
@@ -223,7 +223,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
-      - "${GRAFANA_PORT:-3001}:3000"
+      - "${GRAFANA_PORT:-3003}:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro

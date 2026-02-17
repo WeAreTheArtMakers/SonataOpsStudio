@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.agents.events import emit_realtime_event
 from app.config import get_settings
 from app.db.postgres import execute, fetchrow
+from app.sonification.presets import normalize_preset_name
 from app.storage.minio_client import get_minio
 from app.utils.ids import new_id
 
@@ -38,6 +39,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
     workspace_id = payload.workspace_id or get_settings().default_workspace_id
     if payload.end <= payload.start:
         raise HTTPException(status_code=400, detail="end must be greater than start")
+    normalized_preset = normalize_preset_name(payload.preset)
 
     job_id = new_id()
     correlation_id = new_id()
@@ -55,7 +57,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
         payload.metric_name,
         payload.start,
         payload.end,
-        payload.preset,
+        normalized_preset,
         payload.duration,
         json.dumps(payload.controls),
         correlation_id,
@@ -67,7 +69,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
         {
             "job_id": job_id,
             "metric_name": payload.metric_name,
-            "preset": payload.preset,
+            "preset": normalized_preset,
             "duration": payload.duration,
             "controls": payload.controls,
         },
@@ -77,6 +79,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
         "job_id": job_id,
         "status": "queued",
         "workspace_id": workspace_id,
+        "preset": normalized_preset,
     }
 
 
@@ -107,7 +110,7 @@ async def get_audio_job(
     return {
         "job_id": str(row["job_id"]),
         "metric_name": row["metric_name"],
-        "preset": row["preset"],
+        "preset": normalize_preset_name(str(row["preset"])),
         "duration_seconds": int(row["duration_seconds"]),
         "controls": controls,
         "status": row["status"],

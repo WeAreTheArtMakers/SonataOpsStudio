@@ -21,6 +21,7 @@ Encode operational dynamics as non-fatiguing audio cues usable during multitaski
 - **Glitch texture** = `glitch_density` probability/amplitude of micro-bursts
 - **Pad body** = `pad_depth` controls low-frequency pad/sub layers
 - **Ambient tail** = `ambient_mix` controls feedback wash amount
+- **Rhythm density** = `rhythm_density` scales trigger speed for micro-click structure
 
 ## Presets
 1. **Executive Minimal**
@@ -29,12 +30,18 @@ Encode operational dynamics as non-fatiguing audio cues usable during multitaski
 - minor feel, stronger transients, higher brightness swings
 3. **Growth Momentum**
 - major feel, steady pulse, wider stereo
-4. **State Azure**
-- ambient-first flow, rich harmonizer, deep pad bed
+4. **modART**
+- ambient drift + controlled micro-click rhythm for anomaly listening
 5. **Glitch Harmonics**
 - glitch-forward texture, dense harmonics, energetic pulse
 6. **Ambient Boardroom**
 - long pad sustain, low-fatigue rhythm, executive background mode
+7. **Incident Grid**
+- high-rhythm critical mode with aggressive glitch bursts
+8. **Clean Harmonics**
+- stable mode focus: rich, clean harmonics with low glitch
+9. **Pulse Relay**
+- rhythm-first scan mode for sequence monitoring
 
 ## Soundscape Controls (UI)
 - tempo floor/ceiling (`50..180 BPM`)
@@ -43,6 +50,12 @@ Encode operational dynamics as non-fatiguing audio cues usable during multitaski
 - harmonizer mix (`0.0..1.0`)
 - pad depth (`0.1..1.0`)
 - ambient wash (`0.0..1.0`)
+- rhythm density (`0.7..2.2`)
+
+## Anomaly-Aware Behavior
+- `incident` mode: auto-raises glitch texture and rhythmic density for sharp anomaly audibility
+- `stable` mode: auto-reduces glitch and lifts harmonizer for cleaner rich harmonic context
+- `watch` mode: balanced transition state between incident and stable
 
 ## Determinism
 - render uses seeded random from `correlation_id`

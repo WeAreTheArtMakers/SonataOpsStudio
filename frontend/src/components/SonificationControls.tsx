@@ -15,6 +15,7 @@ const PRESET_DEFAULTS: Record<
     harmonizer_mix: number;
     pad_depth: number;
     ambient_mix: number;
+    rhythm_density: number;
   }
 > = {
   'Executive Minimal': {
@@ -25,7 +26,8 @@ const PRESET_DEFAULTS: Record<
     glitch_density: 0.08,
     harmonizer_mix: 0.3,
     pad_depth: 0.58,
-    ambient_mix: 0.36
+    ambient_mix: 0.36,
+    rhythm_density: 0.92
   },
   'Risk Tension': {
     description: 'Minor harmonic pressure with sharper transients.',
@@ -35,7 +37,8 @@ const PRESET_DEFAULTS: Record<
     glitch_density: 0.42,
     harmonizer_mix: 0.48,
     pad_depth: 0.52,
-    ambient_mix: 0.4
+    ambient_mix: 0.4,
+    rhythm_density: 1.22
   },
   'Growth Momentum': {
     description: 'Forward major feel with reliable pulse.',
@@ -45,17 +48,19 @@ const PRESET_DEFAULTS: Record<
     glitch_density: 0.18,
     harmonizer_mix: 0.52,
     pad_depth: 0.62,
-    ambient_mix: 0.46
+    ambient_mix: 0.46,
+    rhythm_density: 1.28
   },
-  'State Azure': {
-    description: 'Ambient corporate pad with rich harmonizer lift.',
+  modART: {
+    description: 'Signature drift: rich harmonics + controlled microclick pulse.',
     tempo_min: 56,
     tempo_max: 126,
     intensity: 0.54,
     glitch_density: 0.22,
     harmonizer_mix: 0.66,
     pad_depth: 0.9,
-    ambient_mix: 0.86
+    ambient_mix: 0.86,
+    rhythm_density: 1.08
   },
   'Glitch Harmonics': {
     description: 'High-detail glitch texture with layered harmonics.',
@@ -65,7 +70,8 @@ const PRESET_DEFAULTS: Record<
     glitch_density: 0.76,
     harmonizer_mix: 0.74,
     pad_depth: 0.46,
-    ambient_mix: 0.4
+    ambient_mix: 0.4,
+    rhythm_density: 1.56
   },
   'Ambient Boardroom': {
     description: 'Low-fatigue cinematic bed for executive briefings.',
@@ -75,7 +81,41 @@ const PRESET_DEFAULTS: Record<
     glitch_density: 0.05,
     harmonizer_mix: 0.56,
     pad_depth: 0.94,
-    ambient_mix: 0.8
+    ambient_mix: 0.8,
+    rhythm_density: 0.82
+  },
+  'Incident Grid': {
+    description: 'Aggressive rhythmic grid for critical anomaly moments.',
+    tempo_min: 88,
+    tempo_max: 164,
+    intensity: 0.86,
+    glitch_density: 0.84,
+    harmonizer_mix: 0.64,
+    pad_depth: 0.44,
+    ambient_mix: 0.36,
+    rhythm_density: 1.78
+  },
+  'Clean Harmonics': {
+    description: 'Stable-zone preset with clean rich harmonic focus.',
+    tempo_min: 58,
+    tempo_max: 128,
+    intensity: 0.44,
+    glitch_density: 0.04,
+    harmonizer_mix: 0.84,
+    pad_depth: 0.82,
+    ambient_mix: 0.56,
+    rhythm_density: 0.94
+  },
+  'Pulse Relay': {
+    description: 'Rhythmic and clear; ideal for anomaly sequence scanning.',
+    tempo_min: 80,
+    tempo_max: 156,
+    intensity: 0.7,
+    glitch_density: 0.36,
+    harmonizer_mix: 0.58,
+    pad_depth: 0.48,
+    ambient_mix: 0.34,
+    rhythm_density: 1.44
   }
 };
 
@@ -102,7 +142,7 @@ function fromInputLocal(localValue: string): string {
 export default function SonificationControls({ initialMetric = 'RiskScore', onReady }: Props) {
   const now = useMemo(() => new Date(), []);
   const defaultStart = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-  const initialPreset = PRESETS[0];
+  const initialPreset = PRESETS.includes('modART') ? 'modART' : PRESETS[0];
 
   const [metric, setMetric] = useState(initialMetric);
   const [preset, setPreset] = useState(initialPreset);
@@ -116,7 +156,8 @@ export default function SonificationControls({ initialMetric = 'RiskScore', onRe
     glitch_density: PRESET_DEFAULTS[initialPreset].glitch_density,
     harmonizer_mix: PRESET_DEFAULTS[initialPreset].harmonizer_mix,
     pad_depth: PRESET_DEFAULTS[initialPreset].pad_depth,
-    ambient_mix: PRESET_DEFAULTS[initialPreset].ambient_mix
+    ambient_mix: PRESET_DEFAULTS[initialPreset].ambient_mix,
+    rhythm_density: PRESET_DEFAULTS[initialPreset].rhythm_density
   });
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +210,8 @@ export default function SonificationControls({ initialMetric = 'RiskScore', onRe
       glitch_density: defaults.glitch_density,
       harmonizer_mix: defaults.harmonizer_mix,
       pad_depth: defaults.pad_depth,
-      ambient_mix: defaults.ambient_mix
+      ambient_mix: defaults.ambient_mix,
+      rhythm_density: defaults.rhythm_density
     });
   };
 
@@ -177,6 +219,9 @@ export default function SonificationControls({ initialMetric = 'RiskScore', onRe
     <section className="panel p-4">
       <p className="section-title">Soundscape Controls</p>
       <p className="mt-2 text-xs text-sand/70">{PRESET_DEFAULTS[preset].description}</p>
+      <p className="mt-1 text-[11px] text-sand/60">
+        Incident windows auto-boost glitch rhythm. Stable windows auto-favor clean harmonics.
+      </p>
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="text-xs uppercase tracking-[0.12em] text-sand/70">
           Metric
@@ -335,6 +380,19 @@ export default function SonificationControls({ initialMetric = 'RiskScore', onRe
             step={0.01}
             value={controls.ambient_mix}
             onChange={(e) => setControls((prev) => ({ ...prev, ambient_mix: Number(e.target.value) }))}
+            className="mt-1 w-full accent-mint"
+          />
+        </label>
+
+        <label className="text-xs uppercase tracking-[0.12em] text-sand/70">
+          Rhythm Density: {controls.rhythm_density.toFixed(2)}
+          <input
+            type="range"
+            min={0.7}
+            max={2.2}
+            step={0.01}
+            value={controls.rhythm_density}
+            onChange={(e) => setControls((prev) => ({ ...prev, rhythm_density: Number(e.target.value) }))}
             className="mt-1 w-full accent-mint"
           />
         </label>

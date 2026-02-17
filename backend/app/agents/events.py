@@ -15,6 +15,7 @@ from app.db.postgres import execute, fetch, fetchrow
 from app.metrics import anomaly_detected_total, audio_render_total
 from app.sonification.features import compute_anomaly_features
 from app.sonification.mapping import map_features_to_control_curves
+from app.sonification.presets import normalize_preset_name
 from app.sonification.sc_engine import create_mp3_preview, render_wav
 from app.storage.artifacts import artifact_keys
 from app.storage.minio_client import get_minio
@@ -57,6 +58,7 @@ def _normalized_overrides(raw_controls: Any) -> dict[str, float]:
         "harmonizer_mix",
         "pad_depth",
         "ambient_mix",
+        "rhythm_density",
     }
     normalized: dict[str, float] = {}
     for key in allowed:
@@ -219,7 +221,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
         start_ts = job["start_ts"]
         end_ts = job["end_ts"]
         duration = int(job["duration_seconds"])
-        preset = str(job["preset"])
+        preset = normalize_preset_name(str(job["preset"]))
         overrides = _normalized_overrides(job.get("controls"))
 
         minutes = max(5, int((end_ts - start_ts).total_seconds() // 60) + 5)

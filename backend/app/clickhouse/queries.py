@@ -24,10 +24,14 @@ ORDER BY bucket ASC
 """
 
 AUDIO_ANALYTICS_QUERY = """
-SELECT metric_name, preset, count() AS renders, avg(render_ms) AS avg_render_ms
+SELECT
+  metric_name,
+  if(preset = 'State Azure', 'modART', preset) AS preset_name,
+  count() AS renders,
+  avg(render_ms) AS avg_render_ms
 FROM audio_renders
 WHERE workspace_id = %(workspace_id)s
   AND created_at >= now() - toIntervalMinute(%(minutes)s)
-GROUP BY metric_name, preset
+GROUP BY metric_name, preset_name
 ORDER BY renders DESC
 """

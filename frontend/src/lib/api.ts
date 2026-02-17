@@ -89,6 +89,7 @@ export async function queueAudioRender(input: {
     harmonizer_mix?: number;
     pad_depth?: number;
     ambient_mix?: number;
+    rhythm_density?: number;
   };
 }) {
   return request<{ job_id: string; status: string }>('/audio/render', {
