@@ -16,9 +16,23 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ secrets.VM_HOST != '' && secrets.VM_USER != '' && secrets.VM_SSH_KEY != '' }}
     steps:
+      - name: Check VM secrets
+        id: vm
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USER: ${{ secrets.VM_USER }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          if [ -z "$VM_HOST" ] || [ -z "$VM_USER" ] || [ -z "$VM_SSH_KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "VM secrets missing, skipping deploy."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy over SSH
+        if: steps.vm.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
