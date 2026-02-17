@@ -1,0 +1,43 @@
+name: Deploy Free VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose.yml"
+      - "docker-compose.cloud.yml"
+      - "infra/**"
+      - "n8n/**"
+      - "deploy/free-tier/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.VM_HOST != '' && secrets.VM_USER != '' && secrets.VM_SSH_KEY != '' }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export SONATA_DOMAIN='${{ secrets.VM_DOMAIN }}'
+            export REPO_URL='https://github.com/WeAreTheArtMakers/SonataOpsStudio.git'
+            export APP_DIR='/opt/sonataops-studio'
+            export BRANCH='main'
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              curl -fsSL https://raw.githubusercontent.com/WeAreTheArtMakers/SonataOpsStudio/main/deploy/free-tier/bootstrap.sh | bash
+            else
+              cd "$APP_DIR"
+              git fetch origin main
+              git checkout main
+              git pull --ff-only origin main
+              bash deploy/free-tier/update.sh
+            fi

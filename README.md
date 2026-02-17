@@ -7,6 +7,7 @@ SonataOps Studio is an enterprise platform that turns KPI time-series into both 
 - Repository: [https://github.com/WeAreTheArtMakers/SonataOpsStudio](https://github.com/WeAreTheArtMakers/SonataOpsStudio)
 - Free provider: GitHub Pages
 - Free-service deployment link: [https://wearetheartmakers.github.io/SonataOpsStudio/](https://wearetheartmakers.github.io/SonataOpsStudio/)
+- Full-stack free-tier deployment guide: `docs/ONLINE_DEPLOYMENT_FREE_TIER.md`
 
 ## What This Demo Shows
 - KPI ingestion into ClickHouse (OLAP) + Postgres (operational cache)
@@ -133,5 +134,6 @@ Import them in n8n UI and update webhook URLs if needed.
 ## Notes
 - No paid dependency is required in demo mode. If `GROQ_API_KEY`/`ZAI_API_KEY` is missing, the deterministic mock LLM provider is used.
 - Demo mode keeps auth open intentionally; see `docs/SECURITY_GOVERNANCE.md` for production hardening.
+- For stable online full-stack hosting with free tiers, use Oracle Always Free VM + `docker-compose.cloud.yml` (`docs/ONLINE_DEPLOYMENT_FREE_TIER.md`).
 
 Made with ❤️ WeAreTheArtMakers

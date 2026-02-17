@@ -1,0 +1,48 @@
+services:
+  postgres:
+    ports: []
+
+  clickhouse:
+    ports: []
+
+  minio:
+    ports: []
+
+  backend-api:
+    ports: []
+
+  frontend:
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://backend-api:8000}
+
+  n8n:
+    ports: []
+
+  prometheus:
+    ports: []
+
+  grafana:
+    ports: []
+
+  jaeger:
+    ports: []
+
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: sonataops-caddy
+    environment:
+      SONATA_DOMAIN: ${SONATA_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+    volumes:
+      - ./deploy/free-tier/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
