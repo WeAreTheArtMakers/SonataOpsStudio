@@ -230,6 +230,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
         values = [float(v) for _, v in series]
         feature_pack = compute_anomaly_features(values)
         controls = map_features_to_control_curves(metric, feature_pack, preset, overrides=overrides)
+        controls["preset_name"] = preset
 
         correlation_seed = abs(hash(str(job["correlation_id"]))) % 2_000_000
         wav_path, render_ms, engine = await render_wav(controls, duration, correlation_seed)
