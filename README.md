@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="site/logo.png" alt="SonataOps Studio Logo" width="180" />
+</p>
+
 # sonataops-studio
 
 SonataOps Studio is an enterprise platform that turns KPI time-series into both dashboards and soundscapes, explains anomalies with RAG grounded in internal docs, and auto-generates C-level briefs with agents.
