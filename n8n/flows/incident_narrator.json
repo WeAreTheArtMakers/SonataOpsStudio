@@ -1,0 +1,72 @@
+{
+  "name": "Incident Narrator",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "incident-narrator",
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "id": "Webhook_Incident",
+      "name": "Incident Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend-api:8000/copilot/ask",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={\"workspace_id\": $json.workspace_id || \"demo-workspace\", \"question\": \"Write concise incident narrative with what/why/impact/next-steps for anomaly \" + $json.anomaly_id, \"context\": {\"metric\": $json.metric_name, \"anomaly_id\": $json.anomaly_id}, \"user_id\": \"n8n-incident-narrator\"}"
+      },
+      "id": "HTTP_Copilot",
+      "name": "Draft Narrative",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend-api:8000/briefs/create",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={\"workspace_id\": \"demo-workspace\", \"title\": \"Incident Narrative - \" + $json.context.anomaly_id, \"body_md\": $json.answer, \"data\": {\"sources\": $json.top_sources}}"
+      },
+      "id": "HTTP_SaveBrief",
+      "name": "Save Narrative Note",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"ok\",\"message\":\"incident narrative generated\"}"
+      },
+      "id": "Respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [980, 200]
+    }
+  ],
+  "connections": {
+    "Incident Webhook": {
+      "main": [[{ "node": "Draft Narrative", "type": "main", "index": 0 }]]
+    },
+    "Draft Narrative": {
+      "main": [[{ "node": "Save Narrative Note", "type": "main", "index": 0 }]]
+    },
+    "Save Narrative Note": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "incident-narrator-v1"
+}

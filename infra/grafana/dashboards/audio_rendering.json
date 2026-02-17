@@ -1,0 +1,41 @@
+{
+  "id": null,
+  "uid": "audio-rendering",
+  "title": "SonataOps - Audio Rendering",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Audio Renders by Preset",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(audio_render_total[5m])) by (preset)", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Render Endpoint Latency P95",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~'.*audio.*'}[5m])) by (le))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Completed Audio Jobs (24h)",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "increase(audio_render_total[24h])", "refId": "A" }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}

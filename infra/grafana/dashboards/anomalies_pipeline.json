@@ -1,0 +1,41 @@
+{
+  "id": null,
+  "uid": "anomalies-pipeline",
+  "title": "SonataOps - Anomalies Pipeline",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Anomaly Detection Rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(anomaly_detected_total[5m])) by (metric)", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "ClickHouse Ingest Rows",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(clickhouse_ingest_rows_total[5m]))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API Error Ratio",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(http_request_duration_seconds_count{status=~'5..'}[5m])) / clamp_min(sum(rate(http_request_duration_seconds_count[5m])), 1)", "refId": "A" }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}

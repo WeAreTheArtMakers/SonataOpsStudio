@@ -1,0 +1,232 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: sonataops-postgres
+    environment:
+      POSTGRES_DB: sonataops
+      POSTGRES_USER: sonata
+      POSTGRES_PASSWORD: sonata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonata -d sonataops"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: sonataops-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok."]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: sonataops-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: sonataops-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin};
+      mc mb -p local/${MINIO_BUCKET:-audio} || true;
+      mc anonymous set download local/${MINIO_BUCKET:-audio} || true;
+      exit 0;
+      "
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: sonataops-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.1
+    container_name: sonataops-otel
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./infra/otel/otel-collector.yml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    depends_on:
+      - jaeger
+
+  backend-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonataops-backend-api
+    environment:
+      APP_NAME: ${APP_NAME:-sonataops-studio}
+      ENV: ${ENV:-demo}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://sonata:sonata@postgres:5432/sonataops}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-audio}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      N8N_MOCK_MODE: ${N8N_MOCK_MODE:-true}
+      N8N_WEBHOOK_INCIDENT: ${N8N_WEBHOOK_INCIDENT:-http://n8n:5678/webhook/incident-narrator}
+      N8N_WEBHOOK_EXEC_BRIEF: ${N8N_WEBHOOK_EXEC_BRIEF:-http://n8n:5678/webhook/exec-brief-generator}
+      N8N_WEBHOOK_ANOMALY_CORRELATOR: ${N8N_WEBHOOK_ANOMALY_CORRELATOR:-http://n8n:5678/webhook/anomaly-correlator}
+      PROMPTOPS_REQUIRE_APPROVAL: ${PROMPTOPS_REQUIRE_APPROVAL:-true}
+      PROMPTOPS_AUTO_APPROVE: ${PROMPTOPS_AUTO_APPROVE:-true}
+      DEFAULT_WORKSPACE_ID: ${DEFAULT_WORKSPACE_ID:-demo-workspace}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sonataops-backend-worker
+    environment:
+      APP_NAME: ${APP_NAME:-sonataops-studio}
+      ENV: ${ENV:-demo}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      POSTGRES_URL: ${POSTGRES_URL:-postgresql://sonata:sonata@postgres:5432/sonataops}
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-audio}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      PUBLIC_MINIO_URL: ${PUBLIC_MINIO_URL:-http://localhost:9000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
+      N8N_MOCK_MODE: ${N8N_MOCK_MODE:-true}
+      N8N_WEBHOOK_INCIDENT: ${N8N_WEBHOOK_INCIDENT:-http://n8n:5678/webhook/incident-narrator}
+      N8N_WEBHOOK_EXEC_BRIEF: ${N8N_WEBHOOK_EXEC_BRIEF:-http://n8n:5678/webhook/exec-brief-generator}
+      N8N_WEBHOOK_ANOMALY_CORRELATOR: ${N8N_WEBHOOK_ANOMALY_CORRELATOR:-http://n8n:5678/webhook/anomaly-correlator}
+      PROMPTOPS_REQUIRE_APPROVAL: ${PROMPTOPS_REQUIRE_APPROVAL:-true}
+      PROMPTOPS_AUTO_APPROVE: ${PROMPTOPS_AUTO_APPROVE:-true}
+      DEFAULT_WORKSPACE_ID: ${DEFAULT_WORKSPACE_ID:-demo-workspace}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+    command: ["python", "-m", "app.main", "worker"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sonataops-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      - backend-api
+    ports:
+      - "3000:3000"
+
+  n8n:
+    image: n8nio/n8n:1.88.0
+    container_name: sonataops-n8n
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-false}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin}
+      N8N_HOST: localhost
+      WEBHOOK_URL: http://localhost:5678/
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/flows:/data/flows
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: sonataops-prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend-api
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: sonataops-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - jaeger
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  minio_data:
+  grafana_data:
+  n8n_data:

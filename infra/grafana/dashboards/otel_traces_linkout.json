@@ -1,0 +1,32 @@
+{
+  "id": null,
+  "uid": "otel-traces-linkout",
+  "title": "SonataOps - Traces Linkout",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Duration P95",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "text",
+      "title": "Jaeger Link",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "options": {
+        "mode": "markdown",
+        "content": "Open Jaeger UI: [http://localhost:16686](http://localhost:16686)\\n\\nSearch for service `sonataops-studio` and inspect spans across API, DB, ClickHouse, MinIO, n8n webhook, and audio rendering worker."
+      }
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}

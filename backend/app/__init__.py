@@ -1,0 +1,1 @@
+"""SonataOps Studio backend package."""

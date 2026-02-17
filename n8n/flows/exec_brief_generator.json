@@ -1,0 +1,77 @@
+{
+  "name": "Executive Brief Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "Schedule",
+      "name": "Daily 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [180, 220]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://backend-api:8000/analytics/anomalies?workspace_id=demo-workspace&minutes=1440"
+      },
+      "id": "HTTP_AnomalySummary",
+      "name": "Fetch Last 24h",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [440, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend-api:8000/copilot/ask",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={\"workspace_id\":\"demo-workspace\",\"question\":\"Draft a one-page C-level brief with highlights, risks, and actions.\",\"context\":{\"metric\":\"Portfolio\",\"summary\":$json},\"user_id\":\"n8n-exec-brief\"}"
+      },
+      "id": "HTTP_DraftBrief",
+      "name": "Draft Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend-api:8000/briefs/create",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={\"workspace_id\":\"demo-workspace\",\"title\":\"Daily Executive Brief\",\"body_md\":$json.answer,\"data\":{\"sources\":$json.top_sources,\"generated_by\":\"n8n\"}}"
+      },
+      "id": "HTTP_SaveBrief",
+      "name": "Persist Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [980, 220]
+    }
+  ],
+  "connections": {
+    "Daily 09:00": {
+      "main": [[{ "node": "Fetch Last 24h", "type": "main", "index": 0 }]]
+    },
+    "Fetch Last 24h": {
+      "main": [[{ "node": "Draft Brief", "type": "main", "index": 0 }]]
+    },
+    "Draft Brief": {
+      "main": [[{ "node": "Persist Brief", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "exec-brief-generator-v1"
+}

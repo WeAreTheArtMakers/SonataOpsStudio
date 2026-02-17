@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-halo text-sand min-h-screen;
+}
+
+.panel {
+  @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-panel;
+}
+
+.kpi-card {
+  @apply panel p-4 transition-transform duration-300 hover:-translate-y-0.5;
+}
+
+.section-title {
+  @apply text-xs tracking-[0.24em] uppercase text-mint/80;
+}

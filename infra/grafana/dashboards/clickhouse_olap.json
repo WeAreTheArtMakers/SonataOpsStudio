@@ -1,0 +1,46 @@
+{
+  "id": null,
+  "uid": "clickhouse-olap",
+  "title": "SonataOps - ClickHouse OLAP",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "ClickHouse Ingest Rows / sec",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(clickhouse_ingest_rows_total[1m]))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Anomaly Throughput Proxy",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(rate(anomaly_detected_total[5m]))", "refId": "A" }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "OLAP API Link",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 8 },
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false }
+      },
+      "transformations": [],
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "vector(1)", "legendFormat": "Use /analytics/* API for ClickHouse materialized rollups", "refId": "A" }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}
