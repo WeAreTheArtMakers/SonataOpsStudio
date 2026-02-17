@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -22,6 +23,7 @@ class AudioRenderRequest(BaseModel):
     end: datetime
     preset: str = Field(default="Executive Minimal")
     duration: int = Field(default=20, ge=5, le=180)
+    controls: dict[str, float] = Field(default_factory=dict)
 
 
 class AudioUrlResponse(BaseModel):
@@ -44,8 +46,8 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
         """
         INSERT INTO audio_jobs (
             job_id, workspace_id, anomaly_id, metric_name, start_ts,
-            end_ts, preset, duration_seconds, status, correlation_id
-        ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, 'queued', $9)
+            end_ts, preset, duration_seconds, controls, status, correlation_id
+        ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9::jsonb, 'queued', $10)
         """,
         job_id,
         workspace_id,
@@ -55,6 +57,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
         payload.end,
         payload.preset,
         payload.duration,
+        json.dumps(payload.controls),
         correlation_id,
     )
 
@@ -66,6 +69,7 @@ async def queue_audio_render(payload: AudioRenderRequest) -> dict[str, object]:
             "metric_name": payload.metric_name,
             "preset": payload.preset,
             "duration": payload.duration,
+            "controls": payload.controls,
         },
     )
 
@@ -83,7 +87,7 @@ async def get_audio_job(
 ) -> dict[str, object]:
     row = await fetchrow(
         """
-        SELECT job_id, metric_name, preset, duration_seconds, status, error, artifact_id, created_at, updated_at
+        SELECT job_id, metric_name, preset, duration_seconds, controls, status, error, artifact_id, created_at, updated_at
         FROM audio_jobs
         WHERE job_id = $1::uuid AND workspace_id = $2
         """,
@@ -93,11 +97,19 @@ async def get_audio_job(
     if not row:
         raise HTTPException(status_code=404, detail="job not found")
 
+    controls = row["controls"] or {}
+    if isinstance(controls, str):
+        try:
+            controls = json.loads(controls)
+        except json.JSONDecodeError:
+            controls = {}
+
     return {
         "job_id": str(row["job_id"]),
         "metric_name": row["metric_name"],
         "preset": row["preset"],
         "duration_seconds": int(row["duration_seconds"]),
+        "controls": controls,
         "status": row["status"],
         "error": row["error"],
         "artifact_id": str(row["artifact_id"]) if row["artifact_id"] else None,

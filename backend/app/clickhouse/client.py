@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -28,34 +29,57 @@ class ClickHouseService:
         parsed = urlparse(settings.clickhouse_url)
         host = parsed.hostname or "clickhouse"
         port = parsed.port or 8123
+        self._lock = threading.Lock()
         self.client: Client = clickhouse_connect.get_client(
             host=host,
             port=port,
             username=settings.clickhouse_user,
             password=settings.clickhouse_password,
+            # Dashboard loads analytics in parallel; disable sessions so queries do not
+            # contend on a single generated session id in clickhouse_connect.
+            autogenerate_session_id=False,
         )
 
     def init_schema(self) -> None:
         schema_path = Path(__file__).with_name("schema.sql")
         schema = schema_path.read_text(encoding="utf-8")
         for stmt in [s.strip() for s in schema.split(";") if s.strip()]:
-            self.client.command(stmt)
+            self._command(stmt)
+
+    def _command(self, query: str, parameters: dict[str, object] | None = None) -> object:
+        with self._lock:
+            return self.client.command(query, parameters=parameters)
+
+    def _query(self, query: str, parameters: dict[str, object] | None = None) -> object:
+        tracer = trace.get_tracer("sonataops.clickhouse")
+        with tracer.start_as_current_span("clickhouse.query") as span:
+            span.set_attribute("db.system", "clickhouse")
+            span.set_attribute("db.operation", "select")
+            span.set_attribute("db.statement", query[:300])
+            with self._lock:
+                return self.client.query(query, parameters=parameters)
+
+    def _insert(self, table: str, rows: list[tuple[object, ...]], column_names: list[str]) -> None:
+        tracer = trace.get_tracer("sonataops.clickhouse")
+        with tracer.start_as_current_span(f"clickhouse.insert.{table}") as span:
+            span.set_attribute("db.system", "clickhouse")
+            span.set_attribute("db.operation", "insert")
+            span.set_attribute("db.table", table)
+            span.set_attribute("db.rows", len(rows))
+            with self._lock:
+                self.client.insert(table, rows, column_names=column_names)
 
     def insert_kpi_points(self, rows: list[tuple[object, ...]]) -> None:
         if not rows:
             return
-        tracer = trace.get_tracer("sonataops.clickhouse")
-        with tracer.start_as_current_span("clickhouse.insert.kpi_points") as span:
-            span.set_attribute("db.system", "clickhouse")
-            span.set_attribute("db.operation", "insert")
-            self.client.insert(
-                "kpi_points_raw",
-                rows,
-                column_names=["workspace_id", "metric_name", "ts", "value", "tags"],
-            )
+        self._insert(
+            "kpi_points_raw",
+            rows,
+            column_names=["workspace_id", "metric_name", "ts", "value", "tags"],
+        )
 
     def insert_anomaly(self, row: tuple[object, ...]) -> None:
-        self.client.insert(
+        self._insert(
             "anomalies_raw",
             [row],
             column_names=[
@@ -71,7 +95,7 @@ class ClickHouseService:
         )
 
     def insert_audio_render(self, row: tuple[object, ...]) -> None:
-        self.client.insert(
+        self._insert(
             "audio_renders",
             [row],
             column_names=[
@@ -87,7 +111,7 @@ class ClickHouseService:
         )
 
     def metric_names(self, workspace_id: str, minutes: int = 180) -> list[str]:
-        result = self.client.query(
+        result = self._query(
             """
             SELECT DISTINCT metric_name
             FROM kpi_points_raw
@@ -99,7 +123,7 @@ class ClickHouseService:
         return [str(row[0]) for row in result.result_rows]
 
     def recent_points(self, workspace_id: str, metric_name: str, minutes: int = 120) -> list[tuple[str, float]]:
-        result = self.client.query(
+        result = self._query(
             """
             SELECT ts, value
             FROM kpi_points_raw
@@ -117,7 +141,7 @@ class ClickHouseService:
         return [(row[0], float(row[1])) for row in result.result_rows]
 
     def kpi_rollups(self, workspace_id: str, metric_name: str, minutes: int) -> list[dict[str, object]]:
-        result = self.client.query(
+        result = self._query(
             KPI_ROLLUP_QUERY,
             parameters={
                 "workspace_id": workspace_id,
@@ -139,11 +163,11 @@ class ClickHouseService:
         return rows
 
     def anomalies_analytics(self, workspace_id: str, minutes: int) -> dict[str, list[dict[str, object]]]:
-        counts = self.client.query(
+        counts = self._query(
             ANOMALY_ANALYTICS_QUERY,
             parameters={"workspace_id": workspace_id, "minutes": minutes},
         )
-        p95 = self.client.query(
+        p95 = self._query(
             SEVERITY_ANALYTICS_QUERY,
             parameters={"workspace_id": workspace_id, "minutes": minutes},
         )
@@ -168,7 +192,7 @@ class ClickHouseService:
         }
 
     def audio_analytics(self, workspace_id: str, minutes: int) -> list[dict[str, object]]:
-        result = self.client.query(
+        result = self._query(
             AUDIO_ANALYTICS_QUERY,
             parameters={"workspace_id": workspace_id, "minutes": minutes},
         )

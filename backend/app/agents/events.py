@@ -36,6 +36,40 @@ async def emit_realtime_event(workspace_id: str, event_type: str, payload: dict[
     )
 
 
+def _normalized_overrides(raw_controls: Any) -> dict[str, float]:
+    if not raw_controls:
+        return {}
+
+    payload = raw_controls
+    if isinstance(raw_controls, str):
+        try:
+            payload = json.loads(raw_controls)
+        except json.JSONDecodeError:
+            return {}
+    if not isinstance(payload, dict):
+        return {}
+
+    allowed = {
+        "tempo_min",
+        "tempo_max",
+        "intensity",
+        "glitch_density",
+        "harmonizer_mix",
+        "pad_depth",
+        "ambient_mix",
+    }
+    normalized: dict[str, float] = {}
+    for key in allowed:
+        value = payload.get(key)
+        if value is None:
+            continue
+        try:
+            normalized[key] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return normalized
+
+
 def _detect_anomaly_candidate(points: list[tuple[datetime, float]]) -> dict[str, Any] | None:
     if len(points) < 24:
         return None
@@ -186,6 +220,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
         end_ts = job["end_ts"]
         duration = int(job["duration_seconds"])
         preset = str(job["preset"])
+        overrides = _normalized_overrides(job.get("controls"))
 
         minutes = max(5, int((end_ts - start_ts).total_seconds() // 60) + 5)
         series = clickhouse.recent_points(workspace_id, metric, minutes=minutes)
@@ -194,7 +229,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
 
         values = [float(v) for _, v in series]
         feature_pack = compute_anomaly_features(values)
-        controls = map_features_to_control_curves(metric, feature_pack, preset)
+        controls = map_features_to_control_curves(metric, feature_pack, preset, overrides=overrides)
 
         correlation_seed = abs(hash(str(job["correlation_id"]))) % 2_000_000
         wav_path, render_ms, engine = await render_wav(controls, duration, correlation_seed)
@@ -209,8 +244,8 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
             """
             INSERT INTO audio_artifacts (
                 artifact_id, workspace_id, anomaly_id, metric_name, preset,
-                duration_seconds, minio_key_wav, minio_key_mp3, render_ms
-            ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7, $8, $9)
+                duration_seconds, controls, minio_key_wav, minio_key_mp3, render_ms
+            ) VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $7::jsonb, $8, $9, $10)
             """,
             artifact_id,
             workspace_id,
@@ -218,6 +253,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
             metric,
             preset,
             duration,
+            json.dumps(controls),
             key_wav,
             key_mp3,
             render_ms,
@@ -258,6 +294,7 @@ async def run_audio_job_cycle(workspace_id: str) -> int:
                 "preset": preset,
                 "render_ms": render_ms,
                 "engine": engine,
+                "controls": controls,
             },
         )
         return 1

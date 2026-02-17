@@ -13,10 +13,14 @@ Encode operational dynamics as non-fatiguing audio cues usable during multitaski
 
 ## Mapping Rules
 - **Pitch contour** = normalized trend mapped to scale notes
-- **Tempo (BPM)** = volatility clamped to `60..140`
+- **Tempo (BPM)** = volatility + severity with user clamps (`tempo_min`, `tempo_max`)
 - **Rhythmic transients** = severity-triggered pulses / break accents
 - **Filter cutoff / brightness** = traffic or risk control signal
 - **Stereo width** = confidence/stability
+- **Harmonizer depth** = `harmonizer_mix` blend on 3rd/5th intervals
+- **Glitch texture** = `glitch_density` probability/amplitude of micro-bursts
+- **Pad body** = `pad_depth` controls low-frequency pad/sub layers
+- **Ambient tail** = `ambient_mix` controls feedback wash amount
 
 ## Presets
 1. **Executive Minimal**
@@ -25,6 +29,20 @@ Encode operational dynamics as non-fatiguing audio cues usable during multitaski
 - minor feel, stronger transients, higher brightness swings
 3. **Growth Momentum**
 - major feel, steady pulse, wider stereo
+4. **State Azure**
+- ambient-first flow, rich harmonizer, deep pad bed
+5. **Glitch Harmonics**
+- glitch-forward texture, dense harmonics, energetic pulse
+6. **Ambient Boardroom**
+- long pad sustain, low-fatigue rhythm, executive background mode
+
+## Soundscape Controls (UI)
+- tempo floor/ceiling (`50..180 BPM`)
+- intensity (`0.1..1.0`)
+- glitch density (`0.0..1.0`)
+- harmonizer mix (`0.0..1.0`)
+- pad depth (`0.1..1.0`)
+- ambient wash (`0.0..1.0`)
 
 ## Determinism
 - render uses seeded random from `correlation_id`

@@ -81,6 +81,15 @@ export async function queueAudioRender(input: {
   end: string;
   preset: string;
   duration: number;
+  controls?: {
+    tempo_min?: number;
+    tempo_max?: number;
+    intensity?: number;
+    glitch_density?: number;
+    harmonizer_mix?: number;
+    pad_depth?: number;
+    ambient_mix?: number;
+  };
 }) {
   return request<{ job_id: string; status: string }>('/audio/render', {
     method: 'POST',
@@ -95,6 +104,7 @@ export async function getAudioJob(jobId: string) {
     error?: string;
     preset: string;
     metric_name: string;
+    controls?: Record<string, number>;
   }>(`/audio/jobs/${jobId}?workspace_id=${WORKSPACE_ID}`);
 }
 

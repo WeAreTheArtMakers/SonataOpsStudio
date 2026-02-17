@@ -25,7 +25,7 @@ services:
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-sonata}
     ports:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
-      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+      - "${CLICKHOUSE_NATIVE_PORT:-9009}:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     healthcheck:

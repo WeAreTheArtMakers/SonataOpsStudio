@@ -23,12 +23,14 @@ SonataOps Studio is an enterprise platform that turns KPI time-series into both 
 - Tenant-aware architecture with `workspace_id` and tenant-filtered vector search
 - PromptOps approval gate for prompt + source package before LLM calls
 
-## Screenshots (Placeholders)
-- `Dashboard`: KPI cards, anomaly trend, severity histogram
-- `Anomalies`: filterable table + detail drawer + explain + generate sound
-- `Listen`: preset selector + duration slider + audio playback from MinIO signed URLs
-- `Copilot`: grounded chat + source citations panel
-- `Admin`: prompt approvals, doc ingest, eval run controls
+## Screenshots
+![Dashboard](screenshots/dashboard.png)
+![Anomalies](screenshots/anomalies.png)
+![Listen](screenshots/listen.png)
+![Copilot](screenshots/copilot.png)
+![Admin](screenshots/admin.png)
+
+Regenerate locally with `make screenshots` (requires running frontend).
 
 ## Quickstart
 1. Copy env template:
@@ -38,6 +40,11 @@ cp .env.example .env
 2. Start stack:
 ```bash
 docker compose up --build
+```
+
+Or start conflict-safe demo mode (auto-selects free host ports):
+```bash
+make listen-demo
 ```
 3. Open apps:
 - Frontend: [http://localhost:3000](http://localhost:3000)

@@ -19,6 +19,7 @@ frontend/out/
 # Runtime
 .env
 .env.local
+.env.listen-demo
 *.log
 *.pid
 

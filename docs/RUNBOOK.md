@@ -6,6 +6,11 @@ cp .env.example .env
 docker compose up --build
 ```
 
+Or run conflict-safe startup (auto free ports + seed):
+```bash
+make listen-demo
+```
+
 ## Seed Demo
 ```bash
 curl -X POST http://localhost:8000/admin/seed-demo
@@ -57,4 +62,9 @@ docker compose up --build backend-api backend-worker
 - Reset persistent volumes:
 ```bash
 docker compose down -v
+```
+
+## Screenshots
+```bash
+SONATA_SCREENSHOT_BASE_URL=http://localhost:3000 make screenshots
 ```

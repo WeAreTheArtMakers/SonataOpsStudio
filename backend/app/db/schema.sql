@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS audio_artifacts (
     metric_name TEXT NOT NULL,
     preset TEXT NOT NULL,
     duration_seconds INT NOT NULL,
+    controls JSONB NOT NULL DEFAULT '{}'::jsonb,
     minio_key_wav TEXT NOT NULL,
     minio_key_mp3 TEXT NOT NULL,
     render_ms INT NOT NULL,
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS audio_jobs (
     end_ts TIMESTAMPTZ NOT NULL,
     preset TEXT NOT NULL,
     duration_seconds INT NOT NULL,
+    controls JSONB NOT NULL DEFAULT '{}'::jsonb,
     status TEXT NOT NULL DEFAULT 'queued',
     error TEXT,
     correlation_id TEXT NOT NULL,
@@ -62,6 +64,12 @@ CREATE TABLE IF NOT EXISTS audio_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_audio_jobs_workspace_status
     ON audio_jobs (workspace_id, status, created_at);
+
+ALTER TABLE audio_jobs
+    ADD COLUMN IF NOT EXISTS controls JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE audio_artifacts
+    ADD COLUMN IF NOT EXISTS controls JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS rag_documents (
     id UUID PRIMARY KEY,
